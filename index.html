@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#ffffff">
+<title>Tracker</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon.png">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, Inter, system-ui, sans-serif; color: #1c2620; background: #fff; }
+  .wrap { max-width: 420px; margin: 0 auto; padding: 20px 16px 48px; }
+  .nav { display: flex; justify-content: space-between; align-items: center; }
+  .nav button { border: none; background: none; font-size: 24px; color: #6b7570; padding: 4px 12px; }
+  .nav span { font-size: 17px; font-weight: 500; }
+  .remind { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: #fbeee9; border: 1px solid #e8b9a6; border-radius: 10px; padding: 10px 12px; font-size: 13px; color: #8a3d22; margin-bottom: 12px; }
+  .remind button { border: none; background: #c96b4a; color: #fff; border-radius: 8px; padding: 7px 12px; font-size: 13px; }
+  .status { text-align: center; font-size: 12px; color: #2f6f4e; height: 16px; margin: 4px 0 12px; }
+  .summary { background: #eef4f0; border-radius: 14px; padding: 16px 16px 12px; }
+  .big { font-size: 34px; font-weight: 500; line-height: 1; }
+  .sub { font-size: 13px; color: #6b7570; }
+  .delta { font-size: 13px; margin-top: 6px; }
+  .bars { display: flex; gap: 4px; margin-top: 14px; align-items: flex-end; height: 40px; }
+  .bars div { flex: 1; }
+  .bar { border-radius: 3px; background: #9dbfab; }
+  .bar.sel { background: #2f6f4e; }
+  .bar.empty { background: transparent; border-bottom: 2px dashed #dfe4e0; }
+  .stats { display: flex; justify-content: space-between; margin-top: 12px; font-size: 12px; color: #6b7570; }
+  .row { padding: 16px 0; border-top: 1px solid #dfe4e0; }
+  .row h3 { display: flex; justify-content: space-between; align-items: baseline; margin: 0 0 10px; font-size: 15px; font-weight: 500; }
+  .row h3 small { font-size: 12px; color: #6b7570; font-weight: 400; text-align: right; }
+  input[type=number] { width: 100%; font-size: 22px; padding: 10px 12px; border: 1.5px solid #dfe4e0; border-radius: 10px; font-family: inherit; }
+  .dots { display: flex; gap: 6px; flex-wrap: wrap; }
+  .dots button { width: 34px; height: 34px; border-radius: 17px; font-size: 13px; border: 1.5px solid transparent; background: #f3f5f4; color: #6b7570; }
+  .dots button.hit { background: #fff; border-color: #dfe4e0; }
+  .dots button.on { background: #2f6f4e; border-color: #2f6f4e; color: #fff; }
+  .pline { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+  .pline b { font-size: 26px; font-weight: 500; }
+  .pline b.done { color: #2f6f4e; }
+  .track { height: 6px; background: #f3f5f4; border-radius: 3px; margin-bottom: 12px; }
+  .fill { height: 6px; background: #2f6f4e; border-radius: 3px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .chips button { font-size: 12px; padding: 5px 10px; border-radius: 14px; border: 1px solid #2f6f4e; background: #eef4f0; color: #2f6f4e; }
+  .hint { font-size: 12px; color: #6b7570; margin-bottom: 6px; }
+  .foods { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .foods button { display: flex; justify-content: space-between; padding: 9px 10px; border-radius: 8px; border: 1px solid #dfe4e0; background: #fff; color: #1c2620; font-size: 13px; text-align: left; }
+  .foods button span:last-child { color: #6b7570; }
+  .toggles { display: flex; gap: 8px; }
+  .toggles button { flex: 1; padding: 10px 12px; border-radius: 10px; font-size: 14px; text-align: left; border: 1.5px solid #dfe4e0; background: #fff; color: #1c2620; }
+  .toggles button.on { border-color: #c96b4a; background: #fbeee9; color: #8a3d22; }
+  .tabs { display: flex; gap: 6px; margin: 6px 0 12px; }
+  .tabs button { flex: 1; padding: 8px; border-radius: 8px; border: 1.5px solid #dfe4e0; background: #fff; font-size: 13px; color: #1c2620; }
+  .tabs button.on { background: #2f6f4e; border-color: #2f6f4e; color: #fff; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; font-weight: 500; color: #6b7570; font-size: 11px; padding: 6px 4px; border-bottom: 1px solid #dfe4e0; }
+  td { padding: 8px 4px; border-bottom: 1px solid #f0f2f1; white-space: nowrap; }
+  td.num { text-align: right; }
+  .dn { color: #2f6f4e; } .up { color: #8a3d22; }
+  .trendbars { display: flex; gap: 3px; align-items: flex-end; height: 50px; margin-bottom: 12px; }
+  .trendbars div { flex: 1; background: #9dbfab; border-radius: 2px; }
+  .verdict { border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; font-size: 14px; line-height: 1.5; }
+  .verdict h4 { margin: 0 0 6px; font-size: 15px; font-weight: 500; }
+  .verdict ul { margin: 8px 0 0; padding-left: 18px; }
+  .verdict li { margin: 3px 0; }
+  .v-ok { background: #eef4f0; color: #1c2620; }
+  .v-warn { background: #fbeee9; color: #1c2620; }
+  .v-info { background: #f3f5f4; color: #1c2620; }
+  .about { font-size: 13px; color: #6b7570; line-height: 1.6; margin-top: 18px; border-top: 1px solid #dfe4e0; padding-top: 14px; }
+  .foot { border-top: 1px solid #dfe4e0; padding-top: 16px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .foot button { border: 1.5px solid #dfe4e0; background: #fff; border-radius: 8px; padding: 8px 12px; font-size: 13px; color: #1c2620; }
+  .foot button.quiet { border: none; color: #6b7570; }
+  button { cursor: pointer; font-family: inherit; }
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<script>
+const KEY = "tracker-days";
+const BK = "tracker-last-backup";
+const PROTEIN_TARGET = 130, WATER_TARGET = 8, STEP_TARGET = 7000;
+const FOODS = [["Egg",6],["Chicken, palm size",30],["Fish, palm size",25],["Tuna, 1 can",25],["Sardines, 1 can",20],["Firm tofu, 1 block",18],["Greek yoghurt, 1 cup",18],["Soy milk, 1 cup",8],["Chap fan meat dish",20],["Chicken rice, 1 plate",30],["Soup noodles w/ meat",20],["Nasi lemak w/ egg",12],["Rice/bread/noodles",6],["Whey, 1 scoop",25]];
+
+const pad = n => String(n).padStart(2,"0");
+const keyOf = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const shift = (k,n) => { const d = new Date(k+"T00:00:00"); d.setDate(d.getDate()+n); return keyOf(d); };
+const blank = () => ({weight:"",foods:[],steps:"",water:0,fried:0,sweet:0});
+const avg = a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : null;
+const grams = d => (d && d.foods || []).reduce((a,f)=>a+f[1],0);
+
+let days = {};
+try { days = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch(e) {}
+let sel = keyOf(new Date());
+let status = "";
+let view = "day", tab = "week";
+function setView(v) { view = v; render(); }
+function setTab(t) { tab = t; render(); }
+
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(days)); status = "Saved"; }
+  catch(e) { status = "Couldn't save"; }
+  render();
+  setTimeout(()=>{ status=""; render(); }, 1200);
+}
+function day() { return days[sel] || (days[sel] = blank()); }
+function set(patch) { Object.assign(day(), patch); save(); }
+function addFood(i) { day().foods.push(FOODS[i]); save(); }
+function addOther(g) { day().foods.push(["Other +"+g, g]); save(); }
+function removeFood(i) { day().foods.splice(i,1); save(); }
+function go(n) { sel = shift(sel,n); render(); }
+function goTo(k) { sel = k; render(); }
+function today() { sel = keyOf(new Date()); render(); }
+function reset() { if (!confirm("Delete all tracked days?")) return; days = {}; localStorage.removeItem(KEY); render(); }
+function backup() {
+  const txt = JSON.stringify(days);
+  try { localStorage.setItem(BK, keyOf(new Date())); } catch(e) {}
+  status = "Backed up"; setTimeout(()=>{ status=""; render(); }, 1200);
+  render();
+  if (navigator.share) navigator.share({title:"Tracker backup", text: txt}).catch(()=>{});
+  else prompt("Copy this and keep it somewhere safe", txt);
+}
+function restore() {
+  const txt = prompt("Paste your backup");
+  if (!txt) return;
+  try { days = JSON.parse(txt); save(); } catch(e) { alert("That doesn't look like a backup."); }
+}
+
+function summarise(keys) {
+  const ds = keys.map(k=>days[k]).filter(Boolean);
+  const ws = ds.map(d=>parseFloat(d.weight)).filter(v=>!isNaN(v));
+  const st = ds.map(d=>parseInt(d.steps)).filter(v=>!isNaN(v));
+  return { n: ds.length, w: avg(ws), steps: avg(st), protein: ds.filter(d=>grams(d)>=PROTEIN_TARGET).length,
+           fried: ds.filter(d=>d.fried).length, sweet: ds.filter(d=>d.sweet).length };
+}
+function periods() {
+  const t = keyOf(new Date()); const out = [];
+  if (tab === "week") {
+    const d = new Date(t+"T00:00:00"); const dow = (d.getDay()+6)%7; const start = shift(t,-dow);
+    for (let i=0;i<26;i++) { const s0 = shift(start,-7*i); const keys = Array.from({length:7},(_,j)=>shift(s0,j));
+      const lab = new Date(s0+"T00:00:00").toLocaleDateString("en-MY",{day:"numeric",month:"short"});
+      out.push({label:lab, ...summarise(keys)}); }
+  } else {
+    const now = new Date();
+    for (let i=0;i<24;i++) { const m = new Date(now.getFullYear(), now.getMonth()-i, 1);
+      const dim = new Date(m.getFullYear(), m.getMonth()+1, 0).getDate();
+      const keys = Array.from({length:dim},(_,j)=>keyOf(new Date(m.getFullYear(), m.getMonth(), j+1)));
+      out.push({label: m.toLocaleDateString("en-MY",{month:"short",year:"2-digit"}), ...summarise(keys)}); }
+  }
+  return out.filter((p,i)=>p.n>0 || i===0);
+}
+function verdict() {
+  const t = keyOf(new Date()); const d = new Date(t+"T00:00:00"); const dow = (d.getDay()+6)%7; const start = shift(t,-dow);
+  // last 4 complete-ish weeks incl. current
+  const wk = Array.from({length:4},(_,i)=>{ const s0 = shift(start,-7*i); return summarise(Array.from({length:7},(_,j)=>shift(s0,j))); });
+  const withW = wk.filter(w=>w.w!==null);
+  const logged = Object.keys(days).filter(k=>days[k] && days[k].weight!=="").length;
+  if (logged < 10 || withW.length < 2) return { cls:"v-info", title:"Too early to judge", body:`You have ${logged} day${logged===1?"":"s"} of weight logged. The first verdict comes after about two weeks — daily weight swings up to 1 kg from water, so single days mean nothing.`, tips:[] };
+  const changes = []; for (let i=0;i<withW.length-1;i++) changes.push(withW[i].w - withW[i+1].w);
+  const rate = avg(changes); const weeks = changes.length;
+  const recent = wk[0].n >= 3 ? wk[0] : wk[1];
+  const tips = [];
+  if (recent.protein < Math.ceil(recent.n*0.7)) tips.push(`Protein target hit on ${recent.protein} of ${recent.n} days — aim for 5 of 7. Add eggs, tuna or tofu to whichever meal is lightest.`);
+  if (recent.steps !== null && recent.steps < STEP_TARGET) tips.push(`Steps averaging ${Math.round(recent.steps).toLocaleString()} — under ${STEP_TARGET.toLocaleString()}. A 20-minute walk after dinner closes the gap.`);
+  if (recent.fried + recent.sweet > 4) tips.push(`${recent.fried + recent.sweet} slip-up days this week. Weekends usually. Keep it under 3.`);
+  let cls, title, body;
+  if (rate <= -1.0) { cls="v-warn"; title="Losing too fast"; body=`Down ${Math.abs(rate).toFixed(1)} kg/week on average over ${weeks} week${weeks>1?"s":""}. Above 1 kg/week you lose muscle along with fat. Eat about 200 kcal more per day.`; }
+  else if (rate <= -0.4) { cls="v-ok"; title="On track"; body=`Down ${Math.abs(rate).toFixed(1)} kg/week on average over ${weeks} week${weeks>1?"s":""}. This is the right pace. Change nothing.`; }
+  else if (rate < 0) { cls="v-info"; title="Losing, but slowly"; body=`Down ${Math.abs(rate).toFixed(1)} kg/week. Progress, but under the 0.5 kg/week target. Fine if you're happy with the pace; otherwise cut one snack or add 2,000 steps.`; }
+  else if (weeks < 3) { cls="v-info"; title="Not moving yet"; body=`Weight flat or up over ${weeks} week${weeks>1?"s":""}. Too early to call a stall — hold steady one more week before changing anything.`; }
+  else { cls="v-warn"; title="Stalled"; body=`No loss over ${weeks} weeks. Something is adding calories back. Cut about 200 kcal per day (one snack, or half the rice at one meal) or add 2,000 steps, then reassess in two weeks.`; }
+  return { cls, title, body, tips };
+}
+function renderTrends() {
+  const v = verdict();
+  const vHtml = `<div class="verdict ${v.cls}"><h4>${v.title}</h4>${v.body}${v.tips.length?`<ul>${v.tips.map(t=>`<li>${t}</li>`).join("")}</ul>`:""}</div>`;
+  const ps = periods();
+  const ws = ps.map(p=>p.w).filter(v=>v!==null); const lo=Math.min(...ws), hi=Math.max(...ws);
+  const bars = ps.slice().reverse().map(p=>{ const h = p.w===null?0: hi===lo?30:6+((p.w-lo)/(hi-lo))*44; return `<div style="height:${h}px"></div>`; }).join("");
+  const rows = ps.map((p,i)=>{
+    const prev = ps[i+1]; const ch = p.w!==null && prev && prev.w!==null ? p.w-prev.w : null;
+    const days = tab==="week"?7:30;
+    return `<tr><td>${p.label}</td><td class="num">${p.w!==null?p.w.toFixed(1):"—"}</td>
+      <td class="num ${ch===null?"":ch<0?"dn":"up"}">${ch===null?"—":(ch>0?"+":"")+ch.toFixed(1)}</td>
+      <td class="num">${p.protein}/${p.n}</td><td class="num">${p.steps!==null?(Math.round(p.steps/100)/10)+"k":"—"}</td>
+      <td class="num">${p.fried+p.sweet}</td></tr>`; }).join("");
+  document.getElementById("app").innerHTML = `
+    <div class="nav"><button onclick="setView('day')">‹</button><span>Trends</span><span style="width:48px"></span></div>
+    ${vHtml}
+    <div class="tabs"><button class="${tab==="week"?"on":""}" onclick="setTab('week')">Weekly</button><button class="${tab==="month"?"on":""}" onclick="setTab('month')">Monthly</button></div>
+    <div class="trendbars">${bars}</div>
+    <table><tr><th>${tab==="week"?"Week of":"Month"}</th><th style="text-align:right">Avg kg</th><th style="text-align:right">Change</th><th style="text-align:right">Protein</th><th style="text-align:right">Steps</th><th style="text-align:right">Slips</th></tr>${rows}</table>
+    <div class="hint" style="margin-top:12px">Protein = days target hit / days logged. Slips = fried + sweet/snack days. Newest at top.</div>
+    <div class="about"><b>How this works.</b> Log your weight every morning, tap the protein foods you ate, and enter steps. Fat loss is judged by the weekly average weight, never a single day. The target is 0.5–0.7 kg down per week; the verdict above reads your last few weeks and says whether to change anything. Protein keeps you full and protects muscle. Steps and the two slip-up toggles are the usual reasons a week goes wrong.</div>`;
+}
+function render() {
+  if (view === "trends") return renderTrends();
+  const d = day();
+  const week = Array.from({length:7},(_,i)=>shift(sel,i-6));
+  const prev = Array.from({length:7},(_,i)=>shift(sel,i-13));
+  const w = ks => ks.map(k=>parseFloat(days[k]&&days[k].weight)).filter(v=>!isNaN(v));
+  const thisAvg = avg(w(week)), prevAvg = avg(w(prev));
+  const delta = thisAvg!==null && prevAvg!==null ? thisAvg-prevAvg : null;
+  const pDays = week.filter(k=>grams(days[k])>=PROTEIN_TARGET).length;
+  const sAvg = avg(week.map(k=>parseInt(days[k]&&days[k].steps)).filter(v=>!isNaN(v)));
+  const g = grams(d), pct = Math.min(100, Math.round(g/PROTEIN_TARGET*100));
+  const all = w([...prev,...week]); const lo = Math.min(...all), hi = Math.max(...all);
+  const label = new Date(sel+"T00:00:00").toLocaleDateString("en-MY",{weekday:"short",day:"numeric",month:"short"});
+
+  const bars = week.map(k=>{
+    const v = parseFloat(days[k]&&days[k].weight);
+    const h = isNaN(v) ? 0 : hi===lo ? 24 : 8+((v-lo)/(hi-lo))*32;
+    const cls = k===sel ? "bar sel" : isNaN(v) ? "bar empty" : "bar";
+    return `<div onclick="goTo('${k}')"><div class="${cls}" style="height:${h}px"></div></div>`;
+  }).join("");
+
+  const dots = (val,max,target,fn) => Array.from({length:max},(_,i)=>{
+    const on = i<val, hit = i<target;
+    const next = (on && i===val-1) ? i : i+1;
+    return `<button class="${on?'on':hit?'hit':''}" onclick="set({${fn}:${next}})">${i+1}</button>`;
+  }).join("");
+
+  const lastBk = localStorage.getItem(BK);
+  const hasData = Object.keys(days).length > 0;
+  const remind = hasData && lastBk !== keyOf(new Date());
+  const bkNote = !lastBk ? "Never backed up" : `Last backup ${lastBk}`;
+
+  document.getElementById("app").innerHTML = `
+    ${remind ? `<div class="remind"><span>${bkNote} — back up today's data</span><button onclick="backup()">Backup</button></div>` : ""}
+    <div class="nav"><button onclick="go(-1)">‹</button><span>${label}</span><button onclick="go(1)">›</button></div>
+    <div class="status">${status}</div>
+    <div class="summary">
+      <div><span class="big">${thisAvg!==null?thisAvg.toFixed(1):"—"}</span> <span class="sub">kg, 7-day average</span></div>
+      <div class="delta" style="color:${delta===null?'#6b7570':delta<0?'#2f6f4e':'#8a3d22'}">${delta===null?"Log two weeks to see the trend":(delta>0?"+":"")+delta.toFixed(1)+" kg vs last week"}</div>
+      <div class="bars">${bars}</div>
+      <div class="stats"><span>Protein ${pDays}/7 days</span><span>Steps avg ${sAvg!==null?Math.round(sAvg).toLocaleString():"—"}</span></div>
+    </div>
+    <div class="row"><h3>Morning weight <small>after toilet, before food</small></h3>
+      <input type="number" inputmode="decimal" step="0.1" placeholder="80.0" value="${d.weight}" onchange="set({weight:this.value})"></div>
+    <div class="row"><h3>Protein <small>target ${PROTEIN_TARGET} g</small></h3>
+      <div class="pline"><b class="${g>=PROTEIN_TARGET?'done':''}">${g} g</b><span class="sub">${g>=PROTEIN_TARGET?"target hit":(PROTEIN_TARGET-g)+" g to go"}</span></div>
+      <div class="track"><div class="fill" style="width:${pct}%"></div></div>
+      ${d.foods.length?`<div class="chips">${d.foods.map((f,i)=>`<button onclick="removeFood(${i})">${f[0]} ×</button>`).join("")}</div>`:""}
+      <div class="hint">Tap what you ate</div>
+      <div class="foods">${FOODS.map((f,i)=>`<button onclick="addFood(${i})"><span>${f[0]}</span><span>${f[1]}</span></button>`).join("")}</div>
+      <div class="hint" style="margin-top:10px">Not on the list? Estimate it: palm of meat ~30, meat in a noodle/rice dish ~20, a little meat ~10</div>
+      <div class="foods" style="grid-template-columns:1fr 1fr 1fr">
+        <button onclick="addOther(10)"><span>Other</span><span>+10</span></button>
+        <button onclick="addOther(20)"><span>Other</span><span>+20</span></button>
+        <button onclick="addOther(30)"><span>Other</span><span>+30</span></button>
+      </div></div>
+    <div class="row"><h3>Steps <small>target ${STEP_TARGET.toLocaleString()}</small></h3>
+      <input type="number" inputmode="numeric" placeholder="7000" value="${d.steps}" onchange="set({steps:this.value})"></div>
+    <div class="row"><h3>Water <small>glasses of ~300 ml, target 8</small></h3>
+      <div class="dots">${dots(d.water,10,WATER_TARGET,"water")}</div></div>
+    <div class="row"><h3>Slip-ups <small>be honest, it's only for you</small></h3>
+      <div class="toggles">
+        <button class="${d.fried?'on':''}" onclick="set({fried:${d.fried?0:1}})">Fried: ${d.fried?"yes":"no"}</button>
+        <button class="${d.sweet?'on':''}" onclick="set({sweet:${d.sweet?0:1}})">Sweet drink / snack: ${d.sweet?"yes":"no"}</button>
+      </div></div>
+    <div class="foot">
+      <button onclick="today()">Today</button>
+      <button onclick="setView('trends')">Trends</button>
+      <button onclick="backup()">Backup</button>
+      <button onclick="restore()">Restore</button>
+      <button class="quiet" onclick="reset()">Reset</button>
+    </div>`;
+}
+render();
+</script>
+</body>
+</html>
