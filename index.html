@@ -49,6 +49,11 @@
   .foods { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
   .foods button { display: flex; justify-content: space-between; padding: 9px 10px; border-radius: 8px; border: 1px solid #dfe4e0; background: #fff; color: #1c2620; font-size: 13px; text-align: left; }
   .foods button span:last-child { color: #6b7570; }
+  .custom { display: flex; gap: 6px; }
+  .custom input { flex: 1; min-width: 0; font-size: 15px; padding: 9px 10px; border: 1.5px solid #dfe4e0; border-radius: 8px; font-family: inherit; }
+  .custom input#cGrams { flex: 0 0 105px; }
+  .custom button { flex: 1; padding: 9px 8px; border-radius: 8px; border: 1.5px solid #2f6f4e; background: #fff; color: #2f6f4e; font-size: 13px; }
+  .custom button:last-child { background: #2f6f4e; color: #fff; }
   .toggles { display: flex; gap: 8px; }
   .toggles button { flex: 1; padding: 10px 12px; border-radius: 10px; font-size: 14px; text-align: left; border: 1.5px solid #dfe4e0; background: #fff; color: #1c2620; }
   .toggles button.on { border-color: #c96b4a; background: #fbeee9; color: #8a3d22; }
@@ -81,6 +86,7 @@
 <script>
 const KEY = "tracker-days";
 const BK = "tracker-last-backup";
+const MYKEY = "tracker-my-foods";
 const PROTEIN_TARGET = 130, WATER_TARGET = 8, STEP_TARGET = 7000;
 const FOODS = [["Egg",6],["Chicken, palm size",30],["Fish, palm size",25],["Tuna, 1 can",25],["Sardines, 1 can",20],["Firm tofu, 1 block",18],["Greek yoghurt, 1 cup",18],["Soy milk, 1 cup",8],["Chap fan meat dish",20],["Chicken rice, 1 plate",30],["Soup noodles w/ meat",20],["Nasi lemak w/ egg",12],["Rice/bread/noodles",6],["Whey, 1 scoop",25]];
 
@@ -93,6 +99,9 @@ const grams = d => (d && d.foods || []).reduce((a,f)=>a+f[1],0);
 
 let days = {};
 try { days = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch(e) {}
+let myFoods = [];
+try { myFoods = JSON.parse(localStorage.getItem(MYKEY) || "[]"); } catch(e) {}
+function saveMy() { try { localStorage.setItem(MYKEY, JSON.stringify(myFoods)); } catch(e) {} }
 let sel = keyOf(new Date());
 let status = "";
 let view = "day", tab = "week";
@@ -108,24 +117,52 @@ function save() {
 function day() { return days[sel] || (days[sel] = blank()); }
 function set(patch) { Object.assign(day(), patch); save(); }
 function addFood(i) { day().foods.push(FOODS[i]); save(); }
-function addOther(g) { day().foods.push(["Other +"+g, g]); save(); }
+function addMy(i) { day().foods.push(myFoods[i]); save(); }
+function removeMy(i) { if (!confirm("Remove " + myFoods[i][0] + " from your list?")) return; myFoods.splice(i,1); saveMy(); render(); }
+function customAdd(saveToList) {
+  const n = document.getElementById("cName").value.trim();
+  const g = parseFloat(document.getElementById("cGrams").value);
+  if (!n || isNaN(g) || g <= 0) { alert("Enter a name and the protein grams."); return; }
+  const item = [n, Math.round(g*10)/10];
+  if (saveToList) { myFoods.push(item); saveMy(); }
+  day().foods.push(item); save();
+}
 function removeFood(i) { day().foods.splice(i,1); save(); }
 function go(n) { sel = shift(sel,n); render(); }
 function goTo(k) { sel = k; render(); }
 function today() { sel = keyOf(new Date()); render(); }
 function reset() { if (!confirm("Delete all tracked days?")) return; days = {}; localStorage.removeItem(KEY); render(); }
-function backup() {
-  const txt = JSON.stringify(days);
+function stamp() { const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`; }
+function markBackup() {
   try { localStorage.setItem(BK, keyOf(new Date())); } catch(e) {}
-  status = "Backed up"; setTimeout(()=>{ status=""; render(); }, 1200);
-  render();
-  if (navigator.share) navigator.share({title:"Tracker backup", text: txt}).catch(()=>{});
-  else prompt("Copy this and keep it somewhere safe", txt);
+  status = "Backed up"; render(); setTimeout(()=>{ status=""; render(); }, 1200);
+}
+async function backup() {
+  const txt = JSON.stringify({days, myFoods});
+  const name = `tracker-backup-${stamp()}.json`;
+  try {
+    const file = new File([txt], name, {type:"application/json"});
+    if (navigator.canShare && navigator.canShare({files:[file]})) { await navigator.share({files:[file], title:name}); markBackup(); return; }
+  } catch(e) { if (e && e.name === "AbortError") return; }
+  try {
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([txt],{type:"application/json"})); a.download = name; a.click();
+    markBackup(); return;
+  } catch(e) {}
+  prompt("Copy this and keep it somewhere safe", txt); markBackup();
+}
+function applyBackup(txt) {
+  try { const o = JSON.parse(txt);
+    if (o && o.days) { days = o.days; myFoods = o.myFoods || []; saveMy(); } else { days = o; }
+    save(); alert("Restored."); } catch(e) { alert("That doesn't look like a backup."); }
 }
 function restore() {
-  const txt = prompt("Paste your backup");
-  if (!txt) return;
-  try { days = JSON.parse(txt); save(); } catch(e) { alert("That doesn't look like a backup."); }
+  if (confirm("Restore from a backup file?\nOK = choose file, Cancel = paste text")) {
+    const inp = document.createElement("input"); inp.type = "file"; inp.accept = ".json,application/json,text/plain";
+    inp.onchange = () => { const f = inp.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => applyBackup(r.result); r.readAsText(f); };
+    inp.click();
+  } else {
+    const txt = prompt("Paste your backup"); if (txt) applyBackup(txt);
+  }
 }
 
 function summarise(keys) {
@@ -245,11 +282,16 @@ function render() {
       ${d.foods.length?`<div class="chips">${d.foods.map((f,i)=>`<button onclick="removeFood(${i})">${f[0]} ×</button>`).join("")}</div>`:""}
       <div class="hint">Tap what you ate</div>
       <div class="foods">${FOODS.map((f,i)=>`<button onclick="addFood(${i})"><span>${f[0]}</span><span>${f[1]}</span></button>`).join("")}</div>
-      <div class="hint" style="margin-top:10px">Not on the list? Estimate it: palm of meat ~30, meat in a noodle/rice dish ~20, a little meat ~10</div>
-      <div class="foods" style="grid-template-columns:1fr 1fr 1fr">
-        <button onclick="addOther(10)"><span>Other</span><span>+10</span></button>
-        <button onclick="addOther(20)"><span>Other</span><span>+20</span></button>
-        <button onclick="addOther(30)"><span>Other</span><span>+30</span></button>
+      ${myFoods.length?`<div class="hint" style="margin-top:12px">My foods (hold to remove)</div>
+      <div class="foods">${myFoods.map((f,i)=>`<button onclick="addMy(${i})" oncontextmenu="event.preventDefault();removeMy(${i})"><span>${f[0]}</span><span>${f[1]}</span></button>`).join("")}</div>`:""}
+      <div class="hint" style="margin-top:12px">Something else? Enter it with the protein from the packet</div>
+      <div class="custom">
+        <input type="text" id="cName" placeholder="Food name">
+        <input type="number" id="cGrams" inputmode="decimal" step="0.5" placeholder="g protein">
+      </div>
+      <div class="custom" style="margin-top:6px">
+        <button onclick="customAdd(false)">Add today only</button>
+        <button onclick="customAdd(true)">Add + save to my list</button>
       </div></div>
     <div class="row"><h3>Steps <small>target ${STEP_TARGET.toLocaleString()}</small></h3>
       <input type="number" inputmode="numeric" placeholder="7000" value="${d.steps}" onchange="set({steps:this.value})"></div>
