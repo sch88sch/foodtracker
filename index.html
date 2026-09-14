@@ -142,7 +142,7 @@ async function backup() {
   const name = `tracker-backup-${stamp()}.json`;
   try {
     const file = new File([txt], name, {type:"application/json"});
-    if (navigator.canShare && navigator.canShare({files:[file]})) { await navigator.share({files:[file], title:name}); markBackup(); return; }
+    if (navigator.canShare && navigator.canShare({files:[file]})) { await navigator.share({files:[file]}); markBackup(); return; }
   } catch(e) { if (e && e.name === "AbortError") return; }
   try {
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([txt],{type:"application/json"})); a.download = name; a.click();
