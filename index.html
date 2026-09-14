@@ -270,6 +270,11 @@ function render() {
     ${remind ? `<div class="remind"><span>${bkNote} — back up today's data</span><button onclick="backup()">Backup</button></div>` : ""}
     <div class="nav"><button onclick="go(-1)">‹</button><span>${label}</span><button onclick="go(1)">›</button></div>
     <div class="status">${status}</div>
+    <div class="foot" style="border-top:none;padding-top:0;margin-bottom:14px;justify-content:flex-start">
+      <button onclick="today()">Today</button>
+      <button onclick="setView('trends')">Trends</button>
+      <button onclick="backup()">Backup</button>
+    </div>
     <div class="summary">
       <div><span class="big">${thisAvg!==null?thisAvg.toFixed(1):"—"}</span> <span class="sub">kg, 7-day average</span></div>
       <div class="delta" style="color:${delta===null?'#6b7570':delta<0?'#2f6f4e':'#8a3d22'}">${delta===null?"Log two weeks to see the trend":(delta>0?"+":"")+delta.toFixed(1)+" kg vs last week"}</div>
@@ -305,13 +310,10 @@ function render() {
         <button class="${d.sweet?'on':''}" onclick="set({sweet:${d.sweet?0:1}})">Sweet drink / snack: ${d.sweet?"yes":"no"}</button>
       </div></div>
     <div class="foot">
-      <button onclick="today()">Today</button>
-      <button onclick="setView('trends')">Trends</button>
-      <button onclick="backup()">Backup</button>
       <button onclick="restore()">Restore</button>
       <button class="quiet" onclick="reset()">Reset</button>
     </div>
-    <div class="hint" style="text-align:center;margin-top:14px">v5</div>`;
+    <div class="hint" style="text-align:center;margin-top:14px">v6</div>`;
 }
 render();
 </script>
