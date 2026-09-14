@@ -132,23 +132,25 @@ function go(n) { sel = shift(sel,n); render(); }
 function goTo(k) { sel = k; render(); }
 function today() { sel = keyOf(new Date()); render(); }
 function reset() { if (!confirm("Delete all tracked days?")) return; days = {}; localStorage.removeItem(KEY); render(); }
-function stamp() { const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`; }
+function stamp() { const d=new Date(); return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`; }
 function markBackup() {
   try { localStorage.setItem(BK, keyOf(new Date())); } catch(e) {}
   status = "Backed up"; render(); setTimeout(()=>{ status=""; render(); }, 1200);
 }
+let backingUp = false;
 async function backup() {
+  if (backingUp) return; backingUp = true;
   const txt = JSON.stringify({days, myFoods});
-  const name = `tracker-backup-${stamp()}.json`;
+  const name = `${stamp()}.json`;
+  const file = new File([txt], name, {type:"application/json"});
   try {
-    const file = new File([txt], name, {type:"application/json"});
-    if (navigator.canShare && navigator.canShare({files:[file]})) { await navigator.share({files:[file]}); markBackup(); return; }
-  } catch(e) { if (e && e.name === "AbortError") return; }
-  try {
-    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([txt],{type:"application/json"})); a.download = name; a.click();
-    markBackup(); return;
-  } catch(e) {}
-  prompt("Copy this and keep it somewhere safe", txt); markBackup();
+    if (navigator.canShare && navigator.canShare({files:[file]})) {
+      try { await navigator.share({files:[file]}); markBackup(); } catch(e) {}
+    } else {
+      const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([txt],{type:"application/json"})); a.download = name;
+      document.body.appendChild(a); a.click(); a.remove(); markBackup();
+    }
+  } finally { backingUp = false; }
 }
 function applyBackup(txt) {
   try { const o = JSON.parse(txt);
