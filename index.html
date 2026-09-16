@@ -303,7 +303,7 @@ function render() {
     <div class="row"><h3>Steps <small>target ${STEP_TARGET.toLocaleString()}</small></h3>
       <input type="number" inputmode="numeric" placeholder="7000" value="${d.steps}" onchange="set({steps:this.value})"></div>
     <div class="row"><h3>Water <small>glasses of ~300 ml, target 8</small></h3>
-      <div class="dots">${dots(d.water,10,WATER_TARGET,"water")}</div></div>
+      <div class="dots">${dots(d.water,15,WATER_TARGET,"water")}</div></div>
     <div class="row"><h3>Slip-ups <small>be honest, it's only for you</small></h3>
       <div class="toggles">
         <button class="${d.fried?'on':''}" onclick="set({fried:${d.fried?0:1}})">Fried: ${d.fried?"yes":"no"}</button>
@@ -313,7 +313,7 @@ function render() {
       <button onclick="restore()">Restore</button>
       <button class="quiet" onclick="reset()">Reset</button>
     </div>
-    <div class="hint" style="text-align:center;margin-top:14px">v6</div>`;
+    <div class="hint" style="text-align:center;margin-top:14px">v7</div>`;
 }
 render();
 </script>
