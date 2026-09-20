@@ -44,6 +44,7 @@
   .track { height: 6px; background: #f3f5f4; border-radius: 3px; margin-bottom: 12px; }
   .fill { height: 6px; background: #2f6f4e; border-radius: 3px; }
   .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .chips button b { font-weight: 500; margin-left: 2px; }
   .chips button { font-size: 12px; padding: 5px 10px; border-radius: 14px; border: 1px solid #2f6f4e; background: #eef4f0; color: #2f6f4e; }
   .hint { font-size: 12px; color: #6b7570; margin-bottom: 6px; }
   .foods { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
@@ -286,7 +287,7 @@ function render() {
     <div class="row"><h3>Protein <small>target ${PROTEIN_TARGET} g</small></h3>
       <div class="pline"><b class="${g>=PROTEIN_TARGET?'done':''}">${g} g</b><span class="sub">${g>=PROTEIN_TARGET?"target hit":(PROTEIN_TARGET-g)+" g to go"}</span></div>
       <div class="track"><div class="fill" style="width:${pct}%"></div></div>
-      ${d.foods.length?`<div class="chips">${d.foods.map((f,i)=>`<button onclick="removeFood(${i})">${f[0]} ×</button>`).join("")}</div>`:""}
+      ${d.foods.length?`<div class="chips">${d.foods.map((f,i)=>`<button onclick="removeFood(${i})">${f[0]} <b>${f[1]}g</b> ×</button>`).join("")}</div>`:""}
       <div class="hint">Tap what you ate</div>
       <div class="foods">${FOODS.map((f,i)=>`<button onclick="addFood(${i})"><span>${f[0]}</span><span>${f[1]}</span></button>`).join("")}</div>
       ${myFoods.length?`<div class="hint" style="margin-top:12px">My foods (hold to remove)</div>
@@ -313,7 +314,7 @@ function render() {
       <button onclick="restore()">Restore</button>
       <button class="quiet" onclick="reset()">Reset</button>
     </div>
-    <div class="hint" style="text-align:center;margin-top:14px">v7</div>`;
+    <div class="hint" style="text-align:center;margin-top:14px">v8</div>`;
 }
 render();
 </script>
