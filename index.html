@@ -52,7 +52,11 @@
   .foods button span:last-child { color: #6b7570; }
   .custom { display: flex; gap: 6px; }
   .custom input { flex: 1; min-width: 0; font-size: 15px; padding: 9px 10px; border: 1.5px solid #dfe4e0; border-radius: 8px; font-family: inherit; }
-  .custom input#cGrams { flex: 0 0 105px; }
+  .custom input#cGrams, .custom input#cKcal { flex: 1; }
+  .pline b.over { color: #8a3d22; }
+  .fill.over { background: #c96b4a; }
+  .chips button.nok { border-color: #c96b4a; background: #fbeee9; color: #8a3d22; }
+  .warnline { font-size: 12px; color: #8a3d22; margin-bottom: 8px; }
   .custom button { flex: 1; padding: 9px 8px; border-radius: 8px; border: 1.5px solid #2f6f4e; background: #fff; color: #2f6f4e; font-size: 13px; }
   .custom button:last-child { background: #2f6f4e; color: #fff; }
   .toggles { display: flex; gap: 8px; }
@@ -61,9 +65,9 @@
   .tabs { display: flex; gap: 6px; margin: 6px 0 12px; }
   .tabs button { flex: 1; padding: 8px; border-radius: 8px; border: 1.5px solid #dfe4e0; background: #fff; font-size: 13px; color: #1c2620; }
   .tabs button.on { background: #2f6f4e; border-color: #2f6f4e; color: #fff; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
   th { text-align: left; font-weight: 500; color: #6b7570; font-size: 11px; padding: 6px 4px; border-bottom: 1px solid #dfe4e0; }
-  td { padding: 8px 4px; border-bottom: 1px solid #f0f2f1; white-space: nowrap; }
+  td { padding: 8px 3px; border-bottom: 1px solid #f0f2f1; white-space: nowrap; }
   td.num { text-align: right; }
   .dn { color: #2f6f4e; } .up { color: #8a3d22; }
   .trendbars { display: flex; gap: 3px; align-items: flex-end; height: 50px; margin-bottom: 12px; }
@@ -88,15 +92,21 @@
 const KEY = "tracker-days";
 const BK = "tracker-last-backup";
 const MYKEY = "tracker-my-foods";
-const PROTEIN_TARGET = 130, WATER_TARGET = 8, STEP_TARGET = 7000;
-const FOODS = [["Egg",6],["Chicken, palm size",30],["Fish, palm size",25],["Tuna, 1 can",25],["Sardines, 1 can",20],["Firm tofu, 1 block",18],["Greek yoghurt, 1 cup",18],["Soy milk, 1 cup",8],["Chap fan meat dish",20],["Chicken rice, 1 plate",30],["Soup noodles w/ meat",20],["Nasi lemak w/ egg",12],["Rice/bread/noodles",6],["Whey, 1 scoop",25]];
+const PROTEIN_TARGET = 130, CAL_TARGET = 1900, WATER_TARGET = 8, STEP_TARGET = 7000;
+const FOODS = [["Egg",6,75],["Chicken, palm size",30,180],["Fish, palm size",25,140],["Tuna, 1 can",25,120],["Sardines, 1 can",20,190],["Firm tofu, 1 block",18,180],["Greek yoghurt, 1 cup",18,160],["Soy milk, 1 cup",8,90],["Chap fan meat dish",20,250],["Chicken rice, 1 plate",30,600],["Soup noodles w/ meat",20,450],["Nasi lemak w/ egg",12,500],["Rice, 1 bowl",4,230],["Whey, 1 scoop",25,120]];
+const EXTRAS = [["Granola/muesli + milk",12,400],["Instant noodles, 1 pack",9,400],["Teh tarik / kopi susu",3,180],["Milo",4,180],["Sweet drink / juice",0,150],["Beer, 1 can",1,150],["Biscuits, 2 pcs",1,100],["Fries, medium",4,330],["Fried chicken, 1 pc",20,300],["Mooncake, half",4,400]];
 
 const pad = n => String(n).padStart(2,"0");
 const keyOf = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 const shift = (k,n) => { const d = new Date(k+"T00:00:00"); d.setDate(d.getDate()+n); return keyOf(d); };
 const blank = () => ({weight:"",foods:[],steps:"",water:0,fried:0,sweet:0});
 const avg = a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : null;
-const grams = d => (d && d.foods || []).reduce((a,f)=>a+f[1],0);
+const grams = d => Math.round((d && d.foods || []).reduce((a,f)=>a+(f[1]||0),0)*10)/10;
+const kcal = d => (d && d.foods || []).reduce((a,f)=>a+(typeof f[2]==="number"?f[2]:0),0);
+const missingKcal = d => (d && d.foods || []).filter(f=>typeof f[2]!=="number").length;
+const hasKcal = d => !!d && (d.foods||[]).length > 0 && (d.foods||[]).every(f=>typeof f[2]==="number");
+const esc = t => String(t).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const askKcal = (name, cur) => { const r = prompt(`Calories for ${name}?`, cur!=null?cur:""); if (r===null) return null; const v = parseFloat(r); return isNaN(v)||v<0 ? undefined : Math.round(v); };
 
 let days = {};
 try { days = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch(e) {}
@@ -117,18 +127,38 @@ function save() {
 }
 function day() { return days[sel] || (days[sel] = blank()); }
 function set(patch) { Object.assign(day(), patch); save(); }
-function addFood(i) { day().foods.push(FOODS[i]); save(); }
-function addMy(i) { day().foods.push(myFoods[i]); save(); }
+function addFood(i) { day().foods.push(FOODS[i].slice()); save(); }
+function addExtra(i) { day().foods.push(EXTRAS[i].slice()); save(); }
+function addMy(i) {
+  const f = myFoods[i];
+  if (typeof f[2] !== "number") {
+    const v = askKcal(f[0]); if (v === null) return;
+    if (v === undefined) { alert("Enter a number, e.g. 250."); return; }
+    f[2] = v; saveMy();
+  }
+  day().foods.push(f.slice()); save();
+}
 function removeMy(i) { if (!confirm("Remove " + myFoods[i][0] + " from your list?")) return; myFoods.splice(i,1); saveMy(); render(); }
 function customAdd(saveToList) {
   const n = document.getElementById("cName").value.trim();
-  const g = parseFloat(document.getElementById("cGrams").value);
-  if (!n || isNaN(g) || g <= 0) { alert("Enter a name and the protein grams."); return; }
-  const item = [n, Math.round(g*10)/10];
+  const gRaw = document.getElementById("cGrams").value, cRaw = document.getElementById("cKcal").value;
+  const g = gRaw==="" ? 0 : parseFloat(gRaw), c = parseFloat(cRaw);
+  if (!n) { alert("Enter the food name."); return; }
+  if (isNaN(g) || g < 0) { alert("Protein must be a number (or leave it empty for 0)."); return; }
+  if (isNaN(c) || c < 0) { alert("Enter the calories. If unsure, estimate — a rough number beats none."); return; }
+  const item = [n, Math.round(g*10)/10, Math.round(c)];
   if (saveToList) { myFoods.push(item); saveMy(); }
   day().foods.push(item); save();
 }
 function removeFood(i) { day().foods.splice(i,1); save(); }
+function editFood(i) {
+  const f = day().foods[i];
+  const r = prompt(`${f[0]}\nCalories (leave empty and tap OK to remove this item):`, typeof f[2]==="number"?f[2]:"");
+  if (r === null) return;
+  if (r.trim() === "") { removeFood(i); return; }
+  const v = parseFloat(r); if (isNaN(v) || v < 0) { alert("Enter a number, e.g. 250."); return; }
+  f[2] = Math.round(v); save();
+}
 function go(n) { sel = shift(sel,n); render(); }
 function goTo(k) { sel = k; render(); }
 function today() { sel = keyOf(new Date()); render(); }
@@ -172,7 +202,8 @@ function summarise(keys) {
   const ds = keys.map(k=>days[k]).filter(Boolean);
   const ws = ds.map(d=>parseFloat(d.weight)).filter(v=>!isNaN(v));
   const st = ds.map(d=>parseInt(d.steps)).filter(v=>!isNaN(v));
-  return { n: ds.length, w: avg(ws), steps: avg(st), protein: ds.filter(d=>grams(d)>=PROTEIN_TARGET).length,
+  const ks = ds.filter(hasKcal).map(kcal);
+  return { n: ds.length, w: avg(ws), steps: avg(st), kcal: avg(ks), kn: ks.length, protein: ds.filter(d=>grams(d)>=PROTEIN_TARGET).length,
            fried: ds.filter(d=>d.fried).length, sweet: ds.filter(d=>d.sweet).length };
 }
 function periods() {
@@ -202,14 +233,16 @@ function verdict() {
   const rate = avg(changes); const weeks = changes.length;
   const recent = wk[0].n >= 3 ? wk[0] : wk[1];
   const tips = [];
+  if (recent.kcal !== null && recent.kn >= 3 && recent.kcal > CAL_TARGET + 100) tips.push(`Calories averaging ${Math.round(recent.kcal).toLocaleString()} on ${recent.kn} logged days — about ${Math.round(recent.kcal - CAL_TARGET)} over target. This is the main reason the scale isn't moving.`);
+  else if (rate > -0.4 && (recent.kcal === null || recent.kn < 3)) tips.push(`Not enough calories logged to see why. Log every meal for the next 14 days, including drinks and snacks.`);
   if (recent.protein < Math.ceil(recent.n*0.7)) tips.push(`Protein target hit on ${recent.protein} of ${recent.n} days — aim for 5 of 7. Add eggs, tuna or tofu to whichever meal is lightest.`);
   if (recent.steps !== null && recent.steps < STEP_TARGET) tips.push(`Steps averaging ${Math.round(recent.steps).toLocaleString()} — under ${STEP_TARGET.toLocaleString()}. A 20-minute walk after dinner closes the gap.`);
   if (recent.fried + recent.sweet > 4) tips.push(`${recent.fried + recent.sweet} slip-up days this week. Weekends usually. Keep it under 3.`);
   let cls, title, body;
   if (rate <= -1.0) { cls="v-warn"; title="Losing too fast"; body=`Down ${Math.abs(rate).toFixed(1)} kg/week on average over ${weeks} week${weeks>1?"s":""}. Above 1 kg/week you lose muscle along with fat. Eat about 200 kcal more per day.`; }
   else if (rate <= -0.4) { cls="v-ok"; title="On track"; body=`Down ${Math.abs(rate).toFixed(1)} kg/week on average over ${weeks} week${weeks>1?"s":""}. This is the right pace. Change nothing.`; }
-  else if (rate < 0) { cls="v-info"; title="Losing, but slowly"; body=`Down ${Math.abs(rate).toFixed(1)} kg/week. Progress, but under the 0.5 kg/week target. Fine if you're happy with the pace; otherwise cut one snack or add 2,000 steps.`; }
-  else if (weeks < 3) { cls="v-info"; title="Not moving yet"; body=`Weight flat or up over ${weeks} week${weeks>1?"s":""}. Too early to call a stall — hold steady one more week before changing anything.`; }
+  else if (rate <= -0.25) { cls="v-info"; title="Losing, but slowly"; body=`Down ${Math.abs(rate).toFixed(1)} kg/week. Progress, but under the 0.5 kg/week target. Fine if you're happy with the pace; otherwise cut one snack or add 2,000 steps.`; }
+  else if (weeks < 3) { cls="v-info"; title="Not moving yet"; body=`Weight flat or up over ${weeks} week${weeks>1?"s":""} (under 0.25 kg/week is within normal water swings). Too early to call a stall — hold steady one more week before changing anything.`; }
   else { cls="v-warn"; title="Stalled"; body=`No loss over ${weeks} weeks. Something is adding calories back. Cut about 200 kcal per day (one snack, or half the rice at one meal) or add 2,000 steps, then reassess in two weeks.`; }
   return { cls, title, body, tips };
 }
@@ -224,6 +257,7 @@ function renderTrends() {
     const days = tab==="week"?7:30;
     return `<tr><td>${p.label}</td><td class="num">${p.w!==null?p.w.toFixed(1):"—"}</td>
       <td class="num ${ch===null?"":ch<0?"dn":"up"}">${ch===null?"—":(ch>0?"+":"")+ch.toFixed(1)}</td>
+      <td class="num ${p.kcal!==null&&p.kcal>CAL_TARGET+100?"up":""}">${p.kcal!==null?Math.round(p.kcal).toLocaleString():"—"}</td>
       <td class="num">${p.protein}/${p.n}</td><td class="num">${p.steps!==null?(Math.round(p.steps/100)/10)+"k":"—"}</td>
       <td class="num">${p.fried+p.sweet}</td></tr>`; }).join("");
   document.getElementById("app").innerHTML = `
@@ -231,9 +265,9 @@ function renderTrends() {
     ${vHtml}
     <div class="tabs"><button class="${tab==="week"?"on":""}" onclick="setTab('week')">Weekly</button><button class="${tab==="month"?"on":""}" onclick="setTab('month')">Monthly</button></div>
     <div class="trendbars">${bars}</div>
-    <table><tr><th>${tab==="week"?"Week of":"Month"}</th><th style="text-align:right">Avg kg</th><th style="text-align:right">Change</th><th style="text-align:right">Protein</th><th style="text-align:right">Steps</th><th style="text-align:right">Slips</th></tr>${rows}</table>
-    <div class="hint" style="margin-top:12px">Protein = days target hit / days logged. Slips = fried + sweet/snack days. Newest at top.</div>
-    <div class="about"><b>How this works.</b> Log your weight every morning, tap the protein foods you ate, and enter steps. Fat loss is judged by the weekly average weight, never a single day. The target is 0.5–0.7 kg down per week; the verdict above reads your last few weeks and says whether to change anything. Protein keeps you full and protects muscle. Steps and the two slip-up toggles are the usual reasons a week goes wrong.</div>`;
+    <table><tr><th>${tab==="week"?"Week of":"Month"}</th><th style="text-align:right">Avg kg</th><th style="text-align:right">Change</th><th style="text-align:right">Kcal</th><th style="text-align:right">Protein</th><th style="text-align:right">Steps</th><th style="text-align:right">Slips</th></tr>${rows}</table>
+    <div class="hint" style="margin-top:12px">Kcal = daily average on fully logged days (red if over ${CAL_TARGET.toLocaleString()}). Protein = days target hit / days logged. Slips = fried + sweet/snack days. Newest at top.</div>
+    <div class="about"><b>How this works.</b> Log your weight every morning, log everything you eat and drink (calories and protein), and enter steps. Fat loss is judged by the weekly average weight, never a single day. The calorie target of ${CAL_TARGET.toLocaleString()} a day is what produces 0.5–0.7 kg down per week; the verdict above reads your last few weeks and says whether to change anything. Protein keeps you full and protects muscle. Steps and the two slip-up toggles are the usual reasons a week goes wrong.</div>`;
 }
 function render() {
   if (view === "trends") return renderTrends();
@@ -246,6 +280,8 @@ function render() {
   const pDays = week.filter(k=>grams(days[k])>=PROTEIN_TARGET).length;
   const sAvg = avg(week.map(k=>parseInt(days[k]&&days[k].steps)).filter(v=>!isNaN(v)));
   const g = grams(d), pct = Math.min(100, Math.round(g/PROTEIN_TARGET*100));
+  const c = kcal(d), cPct = Math.min(100, Math.round(c/CAL_TARGET*100)), cOver = c > CAL_TARGET, miss = missingKcal(d);
+  const wkK = week.filter(k=>hasKcal(days[k])).map(k=>kcal(days[k])); const kAvg = avg(wkK);
   const all = w([...prev,...week]); const lo = Math.min(...all), hi = Math.max(...all);
   const label = new Date(sel+"T00:00:00").toLocaleDateString("en-MY",{weekday:"short",day:"numeric",month:"short"});
 
@@ -280,21 +316,29 @@ function render() {
       <div><span class="big">${thisAvg!==null?thisAvg.toFixed(1):"—"}</span> <span class="sub">kg, 7-day average</span></div>
       <div class="delta" style="color:${delta===null?'#6b7570':delta<0?'#2f6f4e':'#8a3d22'}">${delta===null?"Log two weeks to see the trend":(delta>0?"+":"")+delta.toFixed(1)+" kg vs last week"}</div>
       <div class="bars">${bars}</div>
-      <div class="stats"><span>Protein ${pDays}/7 days</span><span>Steps avg ${sAvg!==null?Math.round(sAvg).toLocaleString():"—"}</span></div>
+      <div class="stats"><span>Kcal avg ${kAvg!==null?Math.round(kAvg).toLocaleString():"—"}</span><span>Protein ${pDays}/7</span><span>Steps avg ${sAvg!==null?Math.round(sAvg).toLocaleString():"—"}</span></div>
     </div>
     <div class="row"><h3>Morning weight <small>after toilet, before food</small></h3>
       <input type="number" inputmode="decimal" step="0.1" placeholder="80.0" value="${d.weight}" onchange="set({weight:this.value})"></div>
-    <div class="row"><h3>Protein <small>target ${PROTEIN_TARGET} g</small></h3>
-      <div class="pline"><b class="${g>=PROTEIN_TARGET?'done':''}">${g} g</b><span class="sub">${g>=PROTEIN_TARGET?"target hit":(PROTEIN_TARGET-g)+" g to go"}</span></div>
+    <div class="row"><h3>Food <small>${CAL_TARGET.toLocaleString()} kcal · ${PROTEIN_TARGET} g protein</small></h3>
+      <div class="pline"><b class="${cOver?'over':''}">${c.toLocaleString()} kcal</b><span class="sub">${cOver?(c-CAL_TARGET).toLocaleString()+" over":(CAL_TARGET-c).toLocaleString()+" left"}</span></div>
+      <div class="track"><div class="fill ${cOver?'over':''}" style="width:${cPct}%"></div></div>
+      <div class="pline"><b class="${g>=PROTEIN_TARGET?'done':''}">${g} g</b><span class="sub">protein · ${g>=PROTEIN_TARGET?"target hit":Math.round((PROTEIN_TARGET-g)*10)/10+" g to go"}</span></div>
       <div class="track"><div class="fill" style="width:${pct}%"></div></div>
-      ${d.foods.length?`<div class="chips">${d.foods.map((f,i)=>`<button onclick="removeFood(${i})">${f[0]} <b>${f[1]}g</b> ×</button>`).join("")}</div>`:""}
-      <div class="hint">Tap what you ate</div>
-      <div class="foods">${FOODS.map((f,i)=>`<button onclick="addFood(${i})"><span>${f[0]}</span><span>${f[1]}</span></button>`).join("")}</div>
+      ${miss?`<div class="warnline">${miss} item${miss>1?"s have":" has"} no calories yet — tap ${miss>1?"them":"it"} to add</div>`:""}
+      ${d.foods.length?`<div class="chips">${d.foods.map((f,i)=>`<button class="${typeof f[2]==="number"?"":"nok"}" onclick="editFood(${i})">${esc(f[0])} <b>${f[1]}g · ${typeof f[2]==="number"?f[2]+" kcal":"? kcal"}</b></button>`).join("")}</div><div class="hint">Tap a logged item to edit its calories or remove it</div>`:""}
+      <div class="hint" style="margin-top:10px">Meals and protein</div>
+      <div class="foods">${FOODS.map((f,i)=>`<button onclick="addFood(${i})"><span>${f[0]}</span><span>${f[2]}</span></button>`).join("")}</div>
+      <div class="hint" style="margin-top:12px">Drinks and snacks</div>
+      <div class="foods">${EXTRAS.map((f,i)=>`<button onclick="addExtra(${i})"><span>${f[0]}</span><span>${f[2]}</span></button>`).join("")}</div>
       ${myFoods.length?`<div class="hint" style="margin-top:12px">My foods (hold to remove)</div>
-      <div class="foods">${myFoods.map((f,i)=>`<button onclick="addMy(${i})" oncontextmenu="event.preventDefault();removeMy(${i})"><span>${f[0]}</span><span>${f[1]}</span></button>`).join("")}</div>`:""}
-      <div class="hint" style="margin-top:12px">Something else? Enter it with the protein from the packet</div>
+      <div class="foods">${myFoods.map((f,i)=>`<button onclick="addMy(${i})" oncontextmenu="event.preventDefault();removeMy(${i})"><span>${esc(f[0])}</span><span>${typeof f[2]==="number"?f[2]:"?"}</span></button>`).join("")}</div>`:""}
+      <div class="hint" style="margin-top:12px">Something else? Enter it from the packet, or estimate</div>
       <div class="custom">
         <input type="text" id="cName" placeholder="Food name">
+      </div>
+      <div class="custom" style="margin-top:6px">
+        <input type="number" id="cKcal" inputmode="numeric" step="1" placeholder="kcal">
         <input type="number" id="cGrams" inputmode="decimal" step="0.5" placeholder="g protein">
       </div>
       <div class="custom" style="margin-top:6px">
@@ -314,7 +358,7 @@ function render() {
       <button onclick="restore()">Restore</button>
       <button class="quiet" onclick="reset()">Reset</button>
     </div>
-    <div class="hint" style="text-align:center;margin-top:14px">v8</div>`;
+    <div class="hint" style="text-align:center;margin-top:14px">v9</div>`;
 }
 render();
 </script>
